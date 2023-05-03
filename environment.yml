@@ -1,0 +1,5 @@
+name: investing
+dependencies:
+  - python >= 3.10
+  - conda-forge::yfinance=0.2.*
+  - black
