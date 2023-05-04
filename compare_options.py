@@ -3,6 +3,7 @@
 import re
 import datetime
 import yfinance as yf
+import logger
 
 
 class compareContracts:
@@ -155,97 +156,71 @@ class compareContracts:
         else:
             self.extrensicVal = self.premium
 
+    @staticmethod
+    def extract_specs(spec_str: str) -> dict(str):
+        spec_list = spec_str.split(" ")
+        ticker = spec_list[0]
+        expiry = spec_list[1]
+        strike = spec_list[-1][:-1]
+        contract_type = spec_str[-1].upper()
+
+        # Error check
+        if not ticker.isalpha():
+            raise TypeError(
+                f"Incorrectly specified ticker [{ticker}] in input string [{spec_str}]."
+            )
+        if not strike.isnumeric():
+            raise TypeError(
+                f"Incorrectly specified strike [{strike}] in input string [{spec_str}]."
+            )
+        if not contract_type.isalpha():
+            raise TypeError(
+                f"Incorrectly specified contract type [{contract_type}] in input string [{spec_str}]."
+            )
+        try:
+            datetime.datetime.strptime(expiry, "%M/%d/%y")
+        except ValueError:
+            raise ValueError(
+                f"Incorrect data format for date {expiry}, should be MM/DD/YY."
+            )
+
+        return {
+            "ticker": ticker,
+            "strike": strike,
+            "expiry": expiry,
+            "contract_type": contract_type,
+        }
+
+    @staticmethod
+    def convert_to_contract_symbol(inp_dict: dict(str)) -> str:
+        expiry = datetime.datetime.strptime(inp_dict["expiry"], "%M/%d/%y").strftime(
+            "%y%M%d"
+        )
+
+        return (
+            f"{inp_dict['ticker']}"
+            + f"{expiry}"
+            + f"{inp_dict['contract_type']}"
+            + f"{1000 * float(inp_dict['strike']):08}"
+        )
+
 
 if __name__ == "__main__":
+    import argparse
 
-    def specChar(string):
-        regex = re.compile("[@_!#$%^&*()<>?/\|}{~:]")
-        if regex.search(string) == None:
-            return False
-        else:
-            return True
+    parser = argparse.ArgumentParser(
+        prog="compare_options",
+        description="Quick script to provide information on derivatives.",
+    )
 
-    analysis = 2
+    parser.add_argument(
+        "contract",
+        help=(
+            "Provide the contract specs in standard syntax. For example, "
+            "a Call option for SPY at strike price $400 for expiration 06/16/2022 "
+            "should be input as `SPY 06/16/22 400C`"
+        ),
+    )
+    args = parser.parse_args()
 
-    if analysis == 1:
-        while True:
-            try:
-                ticker = str(input("Stock = "))
-                ticker = ticker.upper()
-            except:
-                print("ERROR: Ticker input not string")
-                continue
-
-            if (ticker.isalpha() == False) or (specChar(ticker) == True):
-                print("ERROR: Ticker cannot have numbers or special chars")
-                continue
-            else:
-                break
-
-        while True:
-            try:
-                month = int(input("exp. month = "))
-            except:
-                print("ERROR: exp. month is not int")
-                continue
-
-            if isinstance(month, float):
-                print("ERROR: exp. month cannot be float, int required")
-                continue
-            else:
-                break
-
-        while True:
-            try:
-                day = int(input("exp. day = "))
-            except:
-                print("ERROR: exp. day is not int")
-                continue
-
-            if isinstance(day, float):
-                print("ERROR: exp. day cannot be float, int required")
-                continue
-            else:
-                break
-
-        while True:
-            try:
-                year = int(input("exp. year = "))
-            except:
-                print("ERROR: exp. year is not int")
-                continue
-
-            if isinstance(year, float):
-                print("ERROR: exp. year cannot be float, int required")
-                continue
-            else:
-                break
-
-        while True:
-            try:
-                strike = float(input("strike = "))
-                strike = int(strike)
-            except:
-                print("ERROR: Strike has to be wither float or int")
-                continue
-            else:
-                break
-
-        while True:
-            try:
-                cType = str(input("Are these calls? [Y/N]:"))
-            except:
-                print("ERROR: contract type has to be string")
-                continue
-
-            cType = cType.upper()
-            if (cType != "Y") and (cType != "N"):
-                print("ERROR: contract type ans. has to be either y/n")
-                continue
-            else:
-                break
-
-        compareContracts(ticker, month, day, year, strike, cType)
-
-    else:
-        compareContracts("DKNG", 9, 17, 2021, 60, "Y")
+    # compareContracts(ticker, month, day, year, strike, cType)
