@@ -78,9 +78,10 @@ class CompareContracts:
 
     def _get_contract(self):
         if self.contract_type == "P":
-            ws_contr = Put(self.ticker, expiration=self.expiry)
+            #TODO: change constructor
+            ws_contr = Put(ticker=self.ticker, expiration=self.expiry, strike=self.strike)
         else:
-            ws_contr = Call(self.ticker, expiration=self.expiry)
+            ws_contr = Call(ticker=self.ticker, expiration=self.expiry, strike=self.strike)
 
         option = {}
 
@@ -102,7 +103,7 @@ class CompareContracts:
         return 100 - (100 / (1 + (var1 / var2)))
 
     @staticmethod
-    def extract_specs(spec_str: str) -> dict(str):
+    def extract_specs(spec_str: str) -> dict[str]:
         spec_list = spec_str.split(" ")
         ticker = spec_list[0]
         expiry = spec_list[1]
@@ -137,7 +138,7 @@ class CompareContracts:
         }
 
     @staticmethod
-    def convert_to_contract_symbol(inp_dict: dict(str)) -> str:
+    def convert_to_contract_symbol(inp_dict: dict[str]) -> str:
         expiry = datetime.strptime(inp_dict["expiry"], "%M-%d-%Y").strftime("%y%M%d")
 
         return (
@@ -148,7 +149,7 @@ class CompareContracts:
         )
 
     @staticmethod
-    def convert_to_informal_ref(inp_dict: dict(str)) -> str:
+    def convert_to_informal_ref(inp_dict: dict[str]) -> str:
         return f"{inp_dict['ticker']} {inp_dict['expiry']} {inp_dict['strike']}{inp_dict['contract_type']}"
 
 
