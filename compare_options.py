@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from textwrap import dedent
+import numpy as np
 
 from wallstreet import Call, Put
 
@@ -16,15 +17,26 @@ class CompareContracts:
         ) = self.extract_specs(contract).values()
         self.contr_name = contract
 
-        option = self._get_contract()
+        option = self._get_contract(
+            self.ticker, self.strike, self.expiry, self.contract_type
+        )
         metrics = self._calculate_metrics(option)
         self._write_metrics(metrics, option)
 
     def _write_metrics(self, metrics, option):
         # TODO: Use jinja
+        # TODO: Better output
+
+        perc_delta_money = (self.strike - option["underlying_price"]) / option[
+            "underlying_price"
+        ]
+        baseline_name, baseline_option, baseline_metrics = self._get_baseline_option(
+            perc_delta_money
+        )
+
         out_str = dedent(
             f"""
-            __________________
+            ____________________________________
             {self.contr_name} [Run on: {datetime.now().strftime("%a %d %b %Y, %I:%M%p")}]
             __________________
             {metrics['sample_perc_change']:.0%} move in ${self.ticker}          = {metrics['contr_perc_change']:.2%} move in option
@@ -33,9 +45,20 @@ class CompareContracts:
             delta/premium            = {metrics['delta_prem']:.2f}
             gamma/delta              = {metrics['gamma_del']:.2f}
             extrinsicValue/theta     = {metrics['ext_theta']:.2f}
-            ask-bid spread           = {metrics['ask_bid_perc_diff']:.2%}
+            ask-bid spread           = {metrics['ask_bid_spread']:.2%}
             premium                  = ${option['premium']}
             __________________
+            Baseline: {baseline_name}
+            __________________
+            {baseline_metrics['sample_perc_change']:.0%} move in ${self.ticker}          = {baseline_metrics['contr_perc_change']:.2%} move in option
+            1 day move in ${self.ticker}       = {baseline_metrics['theta_change']:.2%} decrease in option
+            {baseline_metrics['sample_perc_change']:.0%} IV move in ${self.ticker}       = {baseline_metrics['iv_change']:.2%} move in option
+            delta/premium            = {baseline_metrics['delta_prem']:.2f}
+            gamma/delta              = {baseline_metrics['gamma_del']:.2f}
+            extrinsicValue/theta     = {baseline_metrics['ext_theta']:.2f}
+            ask-bid spread           = {baseline_metrics['ask_bid_spread']:.2%}
+            premium                  = ${baseline_option['premium']}
+            ____________________________________
             """
         )
 
@@ -44,8 +67,9 @@ class CompareContracts:
     def _calculate_metrics(self, option):
         metrics = {}
 
+        metrics["ask_bid_spread"] = option["ask"] - option["bid"]
         metrics["ask_bid_perc_diff"] = float(
-            (option["ask"] - option["bid"]) / ((option["ask"] + option["bid"]) / 2)
+            metrics["ask_bid_spread"] / ((option["ask"] + option["bid"]) / 2)
         )
 
         if self.strike < option["underlying_price"]:
@@ -77,22 +101,23 @@ class CompareContracts:
 
         return metrics
 
-    def _get_contract(self):
-        if self.contract_type == "P":
+    @staticmethod
+    def _get_contract(ticker, strike, expiry, contract_type):
+        if contract_type == "P":
             ws_contr = Put(
-                self.ticker,
-                strike=self.strike,
-                d=self.expiry["day"],
-                m=self.expiry["month"],
-                y=self.expiry["year"],
+                ticker,
+                strike=strike,
+                d=expiry["day"],
+                m=expiry["month"],
+                y=expiry["year"],
             )
         else:
             ws_contr = Call(
-                self.ticker,
-                strike=self.strike,
-                d=self.expiry["day"],
-                m=self.expiry["month"],
-                y=self.expiry["year"],
+                ticker,
+                strike=strike,
+                d=expiry["day"],
+                m=expiry["month"],
+                y=expiry["year"],
             )
 
         option = {}
@@ -108,6 +133,41 @@ class CompareContracts:
         option["ask"] = float(ws_contr.ask)
 
         return option
+
+    def _get_baseline_option(self, perc_delta_money):
+        def find_nearest(array, value):
+            array = np.asarray(array)
+            idx = (np.abs(array - value)).argmin()
+
+            return array[idx]
+
+        if self.contract_type == "P":
+            ws_contr = Put(
+                "SPY",
+                d=self.expiry["day"],
+                m=self.expiry["month"],
+                y=self.expiry["year"],
+            )
+        else:
+            ws_contr = Call(
+                "SPY",
+                d=self.expiry["day"],
+                m=self.expiry["month"],
+                y=self.expiry["year"],
+            )
+
+        prop_strike_baseline = (1 + perc_delta_money) * ws_contr.underlying.price
+        spy_strike = find_nearest(list(ws_contr.strikes), prop_strike_baseline)
+        spy_contr_name = (
+            f"SPY "
+            f"{self.expiry['month']}-{self.expiry['day']}-{self.expiry['year']} "
+            f"{spy_strike}{self.contract_type}"
+        )
+
+        option = self._get_contract("SPY", spy_strike, self.expiry, self.contract_type)
+        metrics = self._calculate_metrics(option)
+
+        return spy_contr_name, option, metrics
 
     @staticmethod
     def ratio_in_index(var1, var2):
@@ -133,7 +193,10 @@ class CompareContracts:
             )
         if not contract_type.isalpha():
             raise TypeError(
-                f"Incorrectly specified contract type [{contract_type}] in input string [{spec_str}]."
+                (
+                    "Incorrectly specified contract type "
+                    f"[{contract_type}] in input string [{spec_str}]."
+                )
             )
         try:
             datetime.strptime(expiry, "%M-%d-%Y")
@@ -174,7 +237,7 @@ if __name__ == "__main__":
         help=(
             "Provide the contract specs in standard syntax. For example, "
             "a Call option for SPY at strike price $400 for expiration 06/16/2022 "
-            "should be input as `'SPY 06-16-2023 400C'`"
+            "should be input as `'SPY 06-16-2023 400C'`. Note the quotation marks."
         ),
     )
     args = parser.parse_args()
