@@ -72,10 +72,9 @@ class CompareContracts:
         metrics = {}
 
         metrics["ask_bid_spread"] = option["ask"] - option["bid"]
-        metrics["ask_bid_perc_diff"] = float(
+        metrics["ask_bid_perc_diff"] = (
             metrics["ask_bid_spread"] / ((option["ask"] + option["bid"]) / 2)
         )
-
         if self.strike < option["underlying_price"]:
             metrics["extrensic_value"] = (
                 option["premium"] - (option["underlying_price"] - self.strike)
@@ -154,7 +153,8 @@ class CompareContracts:
                 y=self.expiry["year"],
             )
 
-        prop_strike_baseline = (1 + perc_delta_money) * ws_contr.underlying.price
+        scaling = 0.5
+        prop_strike_baseline = (1 + perc_delta_money * scaling) * ws_contr.underlying.price
         spy_strike = find_nearest(list(ws_contr.strikes), prop_strike_baseline)
         spy_contr_name = (
             f"SPY "
@@ -186,10 +186,8 @@ class CompareContracts:
             )
         if not contract_type.isalpha():
             raise TypeError(
-                (
-                    "Incorrectly specified contract type "
-                    f"[{contract_type}] in input string [{spec_str}]."
-                )
+                ("Incorrectly specified contract type "
+                f"[{contract_type}] in input string [{spec_str}].")
             )
         try:
             datetime.strptime(expiry, "%M-%d-%Y")
