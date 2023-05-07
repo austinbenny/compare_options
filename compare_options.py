@@ -2,8 +2,8 @@
 
 from datetime import datetime
 from textwrap import dedent
-import numpy as np
 
+import numpy as np
 from wallstreet import Call, Put
 
 
@@ -17,7 +17,7 @@ class CompareContracts:
         ) = self.extract_specs(contract).values()
         self.contr_name = contract
 
-        option = self._get_contract(
+        option = self._get_option_contract(
             self.ticker, self.strike, self.expiry, self.contract_type
         )
         metrics = self._calculate_metrics(option)
@@ -27,12 +27,14 @@ class CompareContracts:
         # TODO: Use jinja
         # TODO: Better output
 
-        perc_delta_money = (self.strike - option["underlying_price"]) / option[
-            "underlying_price"
-        ]
-        baseline_name, baseline_option, baseline_metrics = self._get_baseline_option(
-            perc_delta_money
+        perc_delta_money = (
+            (self.strike - option["underlying_price"]) / option["underlying_price"]
         )
+        (
+            baseline_name,
+            baseline_option,
+            baseline_metrics
+        )= self._get_baseline_option(perc_delta_money)
 
         out_str = dedent(
             f"""
@@ -42,21 +44,23 @@ class CompareContracts:
             {metrics['sample_perc_change']:.0%} move in ${self.ticker}          = {metrics['contr_perc_change']:.2%} move in option
             1 day move in ${self.ticker}       = {metrics['theta_change']:.2%} decrease in option
             {metrics['sample_perc_change']:.0%} IV move in ${self.ticker}       = {metrics['iv_change']:.2%} move in option
+            To earn money ${self.ticker}       > {metrics['break_even']} move per day
             delta/premium            = {metrics['delta_prem']:.2f}
             gamma/delta              = {metrics['gamma_del']:.2f}
             extrinsicValue/theta     = {metrics['ext_theta']:.2f}
-            ask-bid spread           = {metrics['ask_bid_spread']:.2%}
+            ask-bid spread           = {metrics['ask_bid_spread']:.2f}
             premium                  = ${option['premium']}
             __________________
             Baseline: {baseline_name}
             __________________
-            {baseline_metrics['sample_perc_change']:.0%} move in ${self.ticker}          = {baseline_metrics['contr_perc_change']:.2%} move in option
-            1 day move in ${self.ticker}       = {baseline_metrics['theta_change']:.2%} decrease in option
-            {baseline_metrics['sample_perc_change']:.0%} IV move in ${self.ticker}       = {baseline_metrics['iv_change']:.2%} move in option
+            {baseline_metrics['sample_perc_change']:.0%} move in $SPY          = {baseline_metrics['contr_perc_change']:.2%} move in option
+            1 day move in $SPY       = {baseline_metrics['theta_change']:.2%} decrease in option
+            {baseline_metrics['sample_perc_change']:.0%} IV move in $SPY       = {baseline_metrics['iv_change']:.2%} move in option
+            To earn money $SPY       > {baseline_metrics['break_even']} move per day
             delta/premium            = {baseline_metrics['delta_prem']:.2f}
             gamma/delta              = {baseline_metrics['gamma_del']:.2f}
             extrinsicValue/theta     = {baseline_metrics['ext_theta']:.2f}
-            ask-bid spread           = {baseline_metrics['ask_bid_spread']:.2%}
+            ask-bid spread           = {baseline_metrics['ask_bid_spread']:.2f}
             premium                  = ${baseline_option['premium']}
             ____________________________________
             """
@@ -73,8 +77,8 @@ class CompareContracts:
         )
 
         if self.strike < option["underlying_price"]:
-            metrics["extrensic_value"] = option["premium"] - (
-                option["underlying_price"] - self.strike
+            metrics["extrensic_value"] = (
+                option["premium"] - (option["underlying_price"] - self.strike)
             )
         else:
             metrics["extrensic_value"] = option["premium"]
@@ -87,22 +91,16 @@ class CompareContracts:
         metrics["iv_change"] = option["vega"] / option["premium"]
         metrics["non_dim_iv"] = metrics["iv_change"] / option["iv"]
         metrics["theta_change"] = option["theta"] / option["premium"]
-        metrics["break_even"] = (metrics["theta_change"] * option["premium"]) / (
-            option["underlying_price"] * option["delta"]
-        )
+        metrics["break_even"] = metrics["theta_change"] * option["premium"] \
+            * (1 / option["underlying_price"] * option["delta"])
         metrics["delta_prem"] = option["delta"] / option["premium"]
         metrics["gamma_del"] = option["gamma"] / option["delta"]
         metrics["ext_theta"] = metrics["extrensic_value"] / option["theta"]
-        # # indexes
-        # metrics["g_d_index"] = self.ratio_in_index(option["gamma"], option["delta"])
-        # metrics["d_p_index"] = self.ratio_in_index(option["delta"], option["premium"])
-        # metrics["e_t_index"] = self.ratio_in_index(option["extrensic_value"], option["theta"])
-        # metrics["non_dim_iv_index"] = self.ratio_in_index(metrics["iv_change"], option["iv"])
 
         return metrics
 
     @staticmethod
-    def _get_contract(ticker, strike, expiry, contract_type):
+    def _get_option_contract(ticker, strike, expiry, contract_type):
         if contract_type == "P":
             ws_contr = Put(
                 ticker,
@@ -164,15 +162,10 @@ class CompareContracts:
             f"{spy_strike}{self.contract_type}"
         )
 
-        option = self._get_contract("SPY", spy_strike, self.expiry, self.contract_type)
+        option = self._get_option_contract("SPY", spy_strike, self.expiry, self.contract_type)
         metrics = self._calculate_metrics(option)
 
         return spy_contr_name, option, metrics
-
-    @staticmethod
-    def ratio_in_index(var1, var2):
-        """converts the ratios into an index between 0 and 100 kinda like the RSI"""
-        return 100 - (100 / (1 + (var1 / var2)))
 
     @staticmethod
     def extract_specs(spec_str: str) -> dict[str]:
