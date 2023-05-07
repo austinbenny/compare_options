@@ -1,6 +1,7 @@
 name: investing
 dependencies:
   - python >= 3.10
+  - jinja2
   - pip
   - pip:
     - wallstreet-0.3.2
