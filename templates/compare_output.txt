@@ -1,4 +1,4 @@
-____________________________________
+__________________
 {self.contr_name} [Run on: {datetime.now().strftime("%a %d %b %Y, %I:%M%p")}]
 __________________
 {metrics['sample_perc_change']:.0%} move in ${self.ticker}          = {metrics['contr_perc_change']:.2%} move in option
@@ -11,15 +11,3 @@ extrinsicValue/theta     = {metrics['ext_theta']:.2f}
 ask-bid spread           = {metrics['ask_bid_spread']:.2f}
 premium                  = ${option['premium']}
 __________________
-Baseline: {baseline_name}
-__________________
-{baseline_metrics['sample_perc_change']:.0%} move in $SPY          = {baseline_metrics['contr_perc_change']:.2%} move in option
-1 day move in $SPY       = {baseline_metrics['theta_change']:.2%} decrease in option
-{baseline_metrics['sample_perc_change']:.0%} IV move in $SPY       = {baseline_metrics['iv_change']:.2%} move in option
-To earn money $SPY       > {baseline_metrics['break_even']} move per day
-delta/premium            = {baseline_metrics['delta_prem']:.2f}
-gamma/delta              = {baseline_metrics['gamma_del']:.2f}
-extrinsicValue/theta     = {baseline_metrics['ext_theta']:.2f}
-ask-bid spread           = {baseline_metrics['ask_bid_spread']:.2f}
-premium                  = ${baseline_option['premium']}
-____________________________________

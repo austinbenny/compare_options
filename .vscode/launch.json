@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "compare_options",
+            "name": "comparitive_option_metrics",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/compare_options.py",
+            "program": "${workspaceFolder}/comparitive_option_metrics.py",
             "args": ["SPY 06-16-2023 400C"],
             "console": "integratedTerminal",
             "python": "/Users/austinbenny/opt/anaconda3/envs/investing/bin/python",
