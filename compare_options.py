@@ -8,13 +8,14 @@ from wallstreet import Call, Put
 
 
 class CompareContracts:
-    def __init__(self, contract):
+    def __init__(self, contract:str):
         (
             self.ticker,
             self.strike,
             self.expiry,
             self.contract_type,
         ) = self.extract_specs(contract).values()
+        # Assign contract name attribute after error checking
         self.contr_name = contract
 
         option = self._get_option_contract(
@@ -23,7 +24,7 @@ class CompareContracts:
         metrics = self._calculate_metrics(option)
         self._write_metrics(metrics, option)
 
-    def _write_metrics(self, metrics, option):
+    def _write_metrics(self, metrics:dict[str], option:dict[str]):
         # TODO: Use jinja
         # TODO: Better output
 
@@ -68,7 +69,7 @@ class CompareContracts:
 
         print(out_str)
 
-    def _calculate_metrics(self, option):
+    def _calculate_metrics(self, option:dict[float]) -> dict[float]:
         metrics = {}
 
         metrics["ask_bid_spread"] = option["ask"] - option["bid"]
@@ -81,7 +82,6 @@ class CompareContracts:
             )
         else:
             metrics["extrensic_value"] = option["premium"]
-
         metrics["sample_perc_change"] = 0.01
         metrics["delta_change"] = (
             option["delta"] * option["underlying_price"] * metrics["sample_perc_change"]
@@ -99,7 +99,7 @@ class CompareContracts:
         return metrics
 
     @staticmethod
-    def _get_option_contract(ticker, strike, expiry, contract_type):
+    def _get_option_contract(ticker:str, strike:float | int, expiry:dict[int], contract_type:str) -> dict[float]:
         if contract_type == "P":
             ws_contr = Put(
                 ticker,
