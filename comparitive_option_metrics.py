@@ -17,9 +17,10 @@ class Option:
         contract_type: str,
     ):
         self.ticker = ticker.upper()
-        self.strike = float(strike)
         self.expiry = {k: int(v) for k, v in expiry.items()}
+        self.strike = float(strike)
         self.contract_type = contract_type.upper()
+        self.contr_name = self.__str__()
 
         self._add_option_parameters()
 
@@ -27,8 +28,8 @@ class Option:
     def from_ws_obj(cls, ws_obj: Type[Call] | Type[Put]):
         expiry = {}
         ws_expiration = ws_obj.expiration.split("-")
-        expiry["month"] = ws_expiration[0]
-        expiry["day"] = ws_expiration[1]
+        expiry["month"] = ws_expiration[1]
+        expiry["day"] = ws_expiration[0]
         expiry["year"] = ws_expiration[-1]
 
         return cls(ws_obj.ticker, expiry, ws_obj.strike, ws_obj.Option_type[0])
@@ -37,18 +38,18 @@ class Option:
         if self.contract_type == "P":
             ws_contr = Put(
                 self.ticker,
-                strike=self.strike,
                 d=self.expiry["day"],
                 m=self.expiry["month"],
                 y=self.expiry["year"],
+                strike=self.strike,
             )
         else:
             ws_contr = Call(
                 self.ticker,
-                strike=self.strike,
                 d=self.expiry["day"],
                 m=self.expiry["month"],
                 y=self.expiry["year"],
+                strike=self.strike,
             )
 
         # Set new attributes
@@ -76,13 +77,15 @@ class Option:
     def __str__(self) -> str:
         return (
             f"{self.ticker} "
-            f"{self.expiry['month']}-{self.expiry['expiry']['day']}-{self.expiry['expiry']['year']} "
+            f"{self.expiry['month']}-{self.expiry['day']}-{self.expiry['year']} "
             f"{self.strike}{self.contract_type}"
         )
 
 
 class Metrics:
     def __init__(self, option: Type[Option]):
+
+        self.ran_on = datetime.now().strftime("%a %d %b %Y, %I:%M%p")
         self._calculate_metrics(option)
 
     @classmethod
@@ -108,6 +111,7 @@ class Metrics:
         self.iv_change = option.vega / option.premium
         self.non_dim_iv = self.iv_change / option.iv
         self.theta_change = option.theta / option.premium
+        # TODO: check breakeven calc
         self.break_even = (
             self.theta_change
             * option.premium
@@ -150,35 +154,34 @@ class Process:
         )
 
     def _write_metrics(
-        self, comb_contr: dict[float, int, str], baseline: bool, scaling: float
+        self, merged_dict: dict[float, int, str], baseline: bool, scaling: float
     ):
-        # TODO: Use jinja
         # TODO: Better output
 
+        environment = Environment(loader=FileSystemLoader("templates/"))
+        template = environment.get_template("metrics_output.j2")
+
+        out_str = template.render(merged_dict)
+        print(out_str)
+
         if baseline:
-            perc_delta_money = comb_contr["strike"] - comb_contr["underlying_price"] * (
-                1 / comb_contr["underlying_price"]
+            perc_delta_money = (
+                (merged_dict["strike"] - merged_dict["underlying_price"])
+                * (1 / merged_dict["underlying_price"])
             )
-            (
-                baseline_name,
-                baseline_option,
-                baseline_metrics,
-            ) = self._get_baseline_option(
+            baseline_option, baseline_metrics = self._get_baseline_option(
                 self.option.expiry, self.option.contract_type, perc_delta_money, scaling
             )
-
-        environment = Environment(loader=FileSystemLoader("templates/"))
-        template = environment.get_template("compare_output.txt")
-
-        out_str = template.render()
-        baseline_template = template.render()
-
-        print(out_str)
+            baseline_merged_dict = baseline_option.__dict__ | baseline_metrics.__dict__
+            baseline_merged_dict['baseline'] = 'Baseline:'
+            baseline_template = template.render(baseline_merged_dict)
+            print(baseline_template)
 
     @staticmethod
     def _get_baseline_option(
         expiry: dict[int], contract_type: str, perc_delta_money: float, scaling: float
     ) -> tuple[Type[Option], Type[Metrics]]:
+
         def find_nearest(array, value):
             array = np.asarray(array)
             idx = (np.abs(array - value)).argmin()
