@@ -1,13 +1,13 @@
 {{ baseline }}
 {{ contr_name }} [Run on: {{ ran_on }}]
 ------------------
-{{ "{:.0%}".format(sample_perc_change) }} move in ${{ ticker }}            {{ "{:.2%}".format(contr_perc_change) }} move in option
-1 day move in ${{ ticker }}         {{ "{:.2%}".format(theta_change) }} decrease in option
-{{ "{:.0%}".format(sample_perc_change) }} IV move in ${{ ticker }}         {{ "{:.2%}".format(iv_change) }} move in option
-To earn money in ${{ ticker }}      {{ "{:%}".format(break_even) }} move per day
-delta/premium              {{ "{:.2f}".format(delta_prem) }}
-gamma/delta                {{ "{:.2f}".format(gamma_del) }}
-extrinsicValue/theta       {{ "{:.2f}".format(ext_theta) }}
-ask-bid spread             {{ "{:.2f}".format(ask_bid_spread) }}
-premium                    ${{ "{:.2f}".format(premium) }}
+{{ "{:.0%}".format(sample_perc_change) }} move in ${{ ticker }}             {{ "{:.2%}".format(premium_perc_change) }} move in option
+1 day move in ${{ ticker }}          {{ "{:.2%}".format(theta_change) }} decrease in option
+{{ "{:.0%}".format(sample_perc_change) }} IV move in ${{ ticker }}          {{ "{:.2%}".format(iv_change) }} move in option
+To earn money in ${{ ticker }}       {{ "{:%}".format(break_even) }} move per day
+delta/premium               {{ "{:.2f}".format(delta_prem) }}
+gamma/delta                 {{ "{:.2f}".format(gamma_del) }}
+extrinsicValue/theta        {{ "{:.2f}".format(ext_theta) }}
+ask-bid spread              {{ "{:.2f}".format(ask_bid_spread) }}
+premium                     ${{ "{:.2f}".format(premium) }}
 ------------------

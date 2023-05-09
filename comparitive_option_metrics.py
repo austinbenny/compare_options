@@ -95,19 +95,22 @@ class Metrics:
         return cls(option)
 
     def _calculate_metrics(self, option: Type[Option]):
+
         self.ask_bid_spread = option.ask - option.bid
-        self.ask_bid_perc_diff = self.ask_bid_spread / ((option.ask + option.bid) / 2)
+        # Find extrensic value
         if option.strike < option.underlying_price:
             self.extrensic_value = option.premium - (
                 option.underlying_price - option.strike
             )
         else:
             self.extrensic_value = option.premium
+        # Find option percent change given underlying percent change
         self.sample_perc_change = 0.01
-        self.delta_change = (
+
+        self.premium_change = (
             option.delta * option.underlying_price * self.sample_perc_change
         )
-        self.contr_perc_change = self.delta_change / option.premium
+        self.premium_perc_change = self.premium_change / option.premium
         self.iv_change = option.vega / option.premium
         self.non_dim_iv = self.iv_change / option.iv
         self.theta_change = option.theta / option.premium
@@ -123,7 +126,7 @@ class Metrics:
 
 
 class Process:
-    def __init__(self, contr_name: str, baseline: bool = True, scaling: float = 0.5):
+    def __init__(self, contr_name: str, baseline: bool = False, scaling: float = 0.5):
         # Extract conntract identifiers from input contract string
         ticker, expiry, strike, contract_type = self.extract_contract(contr_name)
 
@@ -144,8 +147,6 @@ class Process:
                 )
             )
 
-        # Assign contract name attribute after error checking
-        self.contr_name = contr_name
         self.option = Option(ticker, expiry, strike, contract_type)
         self.metrics = Metrics(self.option)
 
@@ -156,7 +157,6 @@ class Process:
     def _write_metrics(
         self, merged_dict: dict[float, int, str], baseline: bool, scaling: float
     ):
-        # TODO: Better output
 
         environment = Environment(loader=FileSystemLoader("templates/"))
         template = environment.get_template("metrics_output.j2")
@@ -255,7 +255,7 @@ if __name__ == "__main__":
             "if the specified contract is 20%% Out of the Money, the baseline contract "
             "will also be 20%% Out of the Money."
         ),
-        default=True,
+        default='store_true',
     )
     parser.add_argument(
         "--scaling",
