@@ -1,5 +1,6 @@
 # Author: Austin Benny
 
+import os
 from datetime import datetime
 from typing import Type
 
@@ -84,7 +85,6 @@ class Option:
 
 class Metrics:
     def __init__(self, option: Type[Option]):
-
         self.ran_on = datetime.now().strftime("%a %d %b %Y, %I:%M%p")
         self._calculate_metrics(option)
 
@@ -95,7 +95,6 @@ class Metrics:
         return cls(option)
 
     def _calculate_metrics(self, option: Type[Option]):
-
         self.ask_bid_spread = option.ask - option.bid
         # Find extrensic value
         if option.strike < option.underlying_price:
@@ -126,7 +125,7 @@ class Metrics:
 
 
 class Process:
-    def __init__(self, contr_name: str, baseline: bool = False, scaling: float = 0.5):
+    def __init__(self, contr_name: str, baseline: bool, scaling: float):
         # Extract conntract identifiers from input contract string
         ticker, expiry, strike, contract_type = self.extract_contract(contr_name)
 
@@ -157,23 +156,25 @@ class Process:
     def _write_metrics(
         self, merged_dict: dict[float, int, str], baseline: bool, scaling: float
     ):
-
-        environment = Environment(loader=FileSystemLoader("templates/"))
+        templates_path = os.path.dirname(os.path.abspath(__file__))
+        environment = Environment(
+            loader=FileSystemLoader(os.path.join(templates_path, "templates"))
+        )
         template = environment.get_template("metrics_output.j2")
 
         out_str = template.render(merged_dict)
         print(out_str)
 
         if baseline:
+
             perc_delta_money = (
-                (merged_dict["strike"] - merged_dict["underlying_price"])
-                * (1 / merged_dict["underlying_price"])
-            )
+                merged_dict["strike"] - merged_dict["underlying_price"]
+            ) * (1 / merged_dict["underlying_price"])
             baseline_option, baseline_metrics = self._get_baseline_option(
                 self.option.expiry, self.option.contract_type, perc_delta_money, scaling
             )
             baseline_merged_dict = baseline_option.__dict__ | baseline_metrics.__dict__
-            baseline_merged_dict['baseline'] = 'Baseline:'
+            baseline_merged_dict["baseline"] = "Baseline:"
             baseline_template = template.render(baseline_merged_dict)
             print(baseline_template)
 
@@ -181,7 +182,6 @@ class Process:
     def _get_baseline_option(
         expiry: dict[int], contract_type: str, perc_delta_money: float, scaling: float
     ) -> tuple[Type[Option], Type[Metrics]]:
-
         def find_nearest(array, value):
             array = np.asarray(array)
             idx = (np.abs(array - value)).argmin()
@@ -247,6 +247,7 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
+        "-b",
         "--baseline",
         help=(
             "Writes a baseline options contract to compare the input contract against. "
@@ -255,9 +256,10 @@ if __name__ == "__main__":
             "if the specified contract is 20%% Out of the Money, the baseline contract "
             "will also be 20%% Out of the Money."
         ),
-        default='store_true',
+        action="store_true",
     )
     parser.add_argument(
+        "-s",
         "--scaling",
         help=(
             "Often times, the proportion of moniness of the specified contract does not "
